@@ -4,6 +4,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import * as argon from 'argon2';
 
+/*
+  Ejemplo de body para registro:
+  {
+    "email": "usuario@ejemplo.com",
+    "username": "usuario123",
+    "password": "contraseña123",
+    "profileImage": "https://ejemplo.com/imagen.jpg", // opcional
+    "bio": "Breve descripción del usuario", // opcional
+    "role": "AFICIONADO" // opcional, valores permitidos: AFICIONADO, PROFESIONAL, PRODUCTOR, COMPOSITOR
+  }
+*/
+
 interface PrismaError {
   code: string;
   meta?: {
