@@ -10,18 +10,6 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as argon from 'argon2';
 
-/*
-  Ejemplo de body para registro:
-  {
-    "email": "usuario@ejemplo.com",
-    "username": "usuario123",
-    "password": "contraseña123",
-    "profileImage": "https://ejemplo.com/imagen.jpg", // opcional
-    "bio": "Breve descripción del usuario", // opcional
-    "role": "AFICIONADO" // opcional, valores permitidos: AFICIONADO, PROFESIONAL, PRODUCTOR, COMPOSITOR
-  }
-*/
-
 // Tipos para los errores de Prisma
 type PrismaErrorCode = 'P2002' | 'P2000' | 'P2025';
 
@@ -40,6 +28,18 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  /*
+  FUNCIÓN DE REGISTRO:
+  Ejemplo de body para registro:
+  {
+    "email": "usuario@ejemplo.com",
+    "username": "usuario123",
+    "password": "contraseña123",
+    "profileImage": "https://ejemplo.com/imagen.jpg", // opcional
+    "bio": "Breve descripción del usuario", // opcional
+    "role": "AFICIONADO" // opcional, valores permitidos: AFICIONADO, PROFESIONAL, PRODUCTOR, COMPOSITOR
+  }
+*/
   async register(dto: RegisterDto) {
     try {
       // Verificar que todos los campos requeridos estén presentes
@@ -113,43 +113,93 @@ export class AuthService {
     }
   }
 
+  /*
+  FUNCIÓN DE LOGIN:
+  Ejemplo de body para login:
+  {
+    "email": "usuario@ejemplo.com",
+    "password": "contraseña123"
+  }
+  */
+
   async login(dto: LoginDto) {
-    // Buscar el usuario por email
-    const user = await this.prisma.user.findUnique({
-      where: {
-        email: dto.email,
-      },
-    });
+    try {
+      // Verificar que todos los campos requeridos estén presentes
+      if (!dto.email || !dto.password) {
+        throw new BadRequestException(
+          'Faltan campos obligatorios: email y password son requeridos',
+        );
+      }
 
-    // Si no existe el usuario, lanzar excepción
-    if (!user) {
-      throw new UnauthorizedException('Credenciales incorrectas');
+      // Buscar el usuario por email
+      const user = await this.prisma.user.findUnique({
+        where: {
+          email: dto.email,
+        },
+      });
+
+      // Si no existe el usuario, lanzar excepción
+      if (!user) {
+        throw new UnauthorizedException('Credenciales incorrectas');
+      }
+
+      // Verificar la contraseña
+      const passwordMatches = await argon.verify(
+        user.passwordHash,
+        dto.password,
+      );
+
+      // Si la contraseña no coincide, lanzar excepción
+      if (!passwordMatches) {
+        throw new UnauthorizedException('Credenciales incorrectas');
+      }
+
+      // Generar JWT token
+      const token = await this.signToken(user.id, user.email);
+
+      // Retornar el usuario (sin la contraseña) y el token
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          createdAt: user.createdAt,
+          role: user.role,
+          profileImage: user.profileImage,
+          bio: user.bio,
+        },
+        access_token: token,
+      };
+    } catch (error) {
+      // Si ya es una excepción de NestJS, la relanzamos
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      // Error de validación o consulta de Prisma
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMessage = (error as { message: string }).message;
+
+        if (errorMessage.includes('Prisma')) {
+          throw new BadRequestException(
+            'Error al procesar la solicitud de inicio de sesión',
+          );
+        }
+      }
+
+      // Errores inesperados durante la verificación de contraseña
+      if (error && error instanceof Error && error.message.includes('argon2')) {
+        throw new BadRequestException('Error al verificar las credenciales');
+      }
+
+      // Para cualquier otro error, devolvemos un mensaje genérico para no exponer detalles internos
+      throw new UnauthorizedException(
+        'Error al iniciar sesión, por favor intente de nuevo',
+      );
     }
-
-    // Verificar la contraseña
-    const passwordMatches = await argon.verify(user.passwordHash, dto.password);
-
-    // Si la contraseña no coincide, lanzar excepción
-    if (!passwordMatches) {
-      throw new UnauthorizedException('Credenciales incorrectas');
-    }
-
-    // Generar JWT token
-    const token = await this.signToken(user.id, user.email);
-
-    // Retornar el usuario (sin la contraseña) y el token
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        createdAt: user.createdAt,
-        role: user.role,
-        profileImage: user.profileImage,
-        bio: user.bio,
-      },
-      access_token: token,
-    };
   }
 
   async signToken(userId: string, email: string): Promise<string> {
