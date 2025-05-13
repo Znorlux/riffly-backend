@@ -13,3 +13,135 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum UserRole {
+  AFICIONADO
+  PROFESIONAL
+  PRODUCTOR
+  COMPOSITOR
+}
+
+model User {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  email         String    @unique
+  username      String    @unique
+  passwordHash  String
+  profileImage  String?
+  bio           String?
+  role          UserRole  @default(AFICIONADO)
+  
+  // Relaciones
+  tracks        Track[]
+  comments      Comment[]
+  likes         Like[]
+  followers     Follow[]   @relation("following")
+  following     Follow[]   @relation("follower")
+  playlists     Playlist[]
+}
+
+model Track {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  title         String
+  description   String?
+  audioUrl      String
+  coverImage    String?
+  genre         String?
+  duration      Int       // duración en segundos
+  isPublic      Boolean   @default(true)
+  aiGenerated   Boolean   @default(false)
+  aiPrompt      String?   // prompt usado para generar la pista con la API externa
+  
+  // Relaciones
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments      Comment[]
+  likes         Like[]
+  playlistTracks PlaylistTrack[]
+  
+  @@index([userId])
+}
+
+model Comment {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  content       String
+  
+  // Relaciones
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackId       String
+  track         Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([trackId])
+}
+
+model Like {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  
+  // Relaciones
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trackId       String
+  track         Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, trackId])
+  @@index([userId])
+  @@index([trackId])
+}
+
+model Follow {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  
+  // Relaciones
+  followerId    String
+  follower      User      @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId   String
+  following     User      @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// Una Playlist es una colección sencilla de pistas creada por un usuario
+model Playlist {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  title         String
+  description   String?
+  coverImage    String?
+  isPublic      Boolean   @default(true)
+  
+  // Relaciones
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks        PlaylistTrack[]
+  
+  @@index([userId])
+}
+
+// Tabla de relación entre Playlist y Track para manejar el orden de las pistas
+model PlaylistTrack {
+  id            String    @id @default(uuid())
+  createdAt     DateTime  @default(now())
+  position      Int       // Posición de la pista en la playlist
+  
+  // Relaciones
+  playlistId    String
+  playlist      Playlist  @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  trackId       String
+  track         Track     @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  
+  @@unique([playlistId, trackId])
+  @@index([playlistId])
+  @@index([trackId])
+}
