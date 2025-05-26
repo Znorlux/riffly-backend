@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { S3FakeModule } from './s3fake/s3fake.module';
+import { RiffusionModule } from './riffusion/riffusion.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { S3FakeModule } from './s3fake/s3fake.module';
     AuthModule,
     PrismaModule,
     S3FakeModule,
+    RiffusionModule
   ],
   controllers: [AppController],
   providers: [AppService],
