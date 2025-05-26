@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   Res,
+  Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { S3FakeService } from './s3fake.service';
@@ -33,5 +34,13 @@ export class S3FakeController {
     });
 
     res.send(buffer);
+  }
+
+  @Post('upload-from-url')
+  async uploadFromUrl(@Body() body: { url: string; id: string }) {
+    const { url, id } = body;
+    if (!url || !id) throw new Error('Missing "url" or "id" in body');
+
+    return this.s3fakeService.uploadFromUrlWithId(url, id);
   }
 }

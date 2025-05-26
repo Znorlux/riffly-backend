@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { S3FakeClient } from './s3fake.client';
+import axios from 'axios';
+import * as mime from 'mime-types';
 
 @Injectable()
 export class S3FakeService {
@@ -35,4 +37,16 @@ export class S3FakeService {
     return data;
   }
 
+  async uploadFromUrlWithId(url: string, id: string) {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data);
+
+    const contentType = response.headers['content-type'];
+    const extension = mime.extension(contentType) || mime.extension(url) || 'bin';
+
+    const mimetype = contentType || 'application/octet-stream';
+    const filename = `${id}.${extension}`;
+
+    return this.uploadFile(filename, buffer, mimetype);
+  }
 }
