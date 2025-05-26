@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-const Replicate = require('replicate'); // ✅ usa require en lugar de import
+const Replicate = require('replicate');
 
 @Injectable()
 export class RiffusionService {
@@ -13,8 +13,8 @@ export class RiffusionService {
 
   async generateTrack(body: any) {
     const {
-      promptA,
-      promptB = 'any complement for prompt A',
+      promptA = 'funky synth solo',
+      promptB = '90s rap',
       alpha = 0.5,
       denoising = 0.75,
       seed_image_id = 'vibes',
@@ -29,10 +29,10 @@ export class RiffusionService {
         input: {
           prompt_a: promptA,
           prompt_b: promptB,
-          alpha,
-          denoising,
-          seed_image_id,
-          num_inference_steps,
+          alpha: alpha,
+          denoising: denoising,
+          seed_image_id: seed_image_id,
+          num_inference_steps: num_inference_steps,
         },
       },
     );
