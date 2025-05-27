@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { S3FakeClient } from './s3fake.client';
+import { Response } from 'express';
+import { Readable } from 'stream';
 import axios from 'axios';
 import * as mime from 'mime-types';
 
@@ -36,6 +38,33 @@ export class S3FakeService {
 
     return data;
   }
+
+  async streamAudio(path: string, res: Response) {
+    const { data, error } = await this.client.storage
+      .from(this.bucket)
+      .download(path);
+
+    if (error || !data) {
+      console.error('[S3FakeService][streamAudio] Error:', error);
+      throw new Error(`Failed to stream ${path}: ${error?.message}`);
+    }
+
+    const arrayBuffer = await data.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const stream = Readable.from(buffer);
+
+    const extension = path.split('.').pop() || 'mp3';
+    const mimeType = mime.contentType(extension) || 'audio/mpeg';
+
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `inline; filename="${path}"`,
+      'Accept-Ranges': 'bytes',
+    });
+
+    stream.pipe(res);
+  }
+
 
   async uploadFromUrlWithId(url: string, id: string) {
     const response = await axios.get(url, { responseType: 'arraybuffer' });

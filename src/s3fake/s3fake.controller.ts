@@ -14,7 +14,7 @@ import { Response } from 'express';
 
 @Controller('s3fake')
 export class S3FakeController {
-  constructor(private readonly s3fakeService: S3FakeService) {}
+  constructor(private readonly s3fakeService: S3FakeService) { }
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -35,6 +35,15 @@ export class S3FakeController {
 
     res.send(buffer);
   }
+
+  @Get('stream/:filename')
+  async stream(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+  ) {
+    return this.s3fakeService.streamAudio(filename, res);
+  }
+
 
   @Post('upload-from-url')
   async uploadFromUrl(@Body() body: { url: string; id: string }) {
