@@ -2,10 +2,11 @@
 
 ## Resumen General
 
-El backend está construido con **NestJS** y utiliza **TypeScript**. Tiene dos módulos principales:
+El backend está construido con **NestJS** y utiliza **TypeScript**. Tiene tres módulos principales:
 
 - **Riffusion**: Para generar música usando IA
 - **S3Fake**: Para almacenar archivos en Supabase Storage
+- **Tracks**: Para gestionar las canciones/tracks generados
 
 ## Configuración del Servidor
 
@@ -147,12 +148,177 @@ const generateMusic = async (params: any) => {
 }
 ```
 
-## Flujo Completo de Generación y Almacenamiento
+## Módulo Tracks - Gestión de Canciones
+
+### Ruta Principal
+
+**Base URL**: `/tracks`
+
+### Endpoints Disponibles
+
+#### POST `/tracks`
+
+**Propósito**: Crear una nueva canción/track con todos sus metadatos
+
+**Body (JSON)**:
+
+```json
+{
+  "title": "Mi Canción Generada",
+  "description": "Una descripción opcional",
+  "audioUrl": "https://supabase-url/.../audio.wav",
+  "coverImage": "https://example.com/cover.jpg",
+  "spectrogramUrl": "https://supabase-url/.../spectro.png",
+  "genre": "ELECTRONIC",
+  "mood": "ENERGETICO",
+  "tempo": "FAST",
+  "duration": 120,
+  "isPublic": true,
+  "allowCollaborations": false,
+  "aiGenerated": true,
+  "generationMethod": "PROMPT",
+  "aiPrompt": "electronic dance music with ambient chill",
+  "originalPrompt": "electronic dance music",
+  "mainInstruments": ["synthesizer", "drums"],
+  "lyrics": "Letras opcionales",
+  "riffusionId": "prediction-id-from-replicate",
+  "generationId": "unique-session-id",
+  "generationTime": 30000,
+  "fileSize": 2048576,
+  "userId": "user-uuid"
+}
+```
+
+**Respuesta**: Track creado con información del usuario y contadores
+
+#### GET `/tracks`
+
+**Propósito**: Obtener lista de tracks con filtros y paginación
+
+**Query Parameters**:
+
+- `page`: Número de página (default: 1)
+- `limit`: Tracks por página (default: 20)
+- `userId`: Filtrar por usuario
+- `genre`: Filtrar por género
+- `mood`: Filtrar por estado de ánimo
+- `isPublic`: Filtrar por visibilidad (true/false)
+- `aiGenerated`: Filtrar por generación IA (true/false)
+
+**Ejemplo**: `GET /tracks?page=1&limit=10&genre=ELECTRONIC&mood=ENERGETICO`
+
+#### GET `/tracks/popular`
+
+**Propósito**: Obtener tracks más populares (por número de likes)
+
+**Query Parameters**:
+
+- `limit`: Número de tracks (default: 10)
+
+#### GET `/tracks/search`
+
+**Propósito**: Buscar tracks por texto
+
+**Query Parameters**:
+
+- `q`: Texto a buscar (en título, descripción, prompts, lyrics, username)
+
+**Ejemplo**: `GET /tracks/search?q=electronic dance`
+
+#### GET `/tracks/user/:userId`
+
+**Propósito**: Obtener todos los tracks de un usuario específico
+
+**Parámetros**:
+
+- `userId`: ID del usuario
+
+#### GET `/tracks/:id`
+
+**Propósito**: Obtener un track específico con todos sus detalles, comentarios y likes
+
+**Parámetros**:
+
+- `id`: ID del track
+
+#### PUT `/tracks/:id`
+
+**Propósito**: Actualizar un track existente
+
+**Parámetros**:
+
+- `id`: ID del track
+- `userId`: ID del usuario (query param, en producción vendría del JWT)
+
+**Body**: Cualquier campo del track a actualizar (parcial)
+
+#### DELETE `/tracks/:id`
+
+**Propósito**: Eliminar un track
+
+**Parámetros**:
+
+- `id`: ID del track
+- `userId`: ID del usuario (query param, en producción vendría del JWT)
+
+### Enums Disponibles
+
+#### TrackGenre
+
+```typescript
+POP |
+  ROCK |
+  ELECTRONIC |
+  HIP_HOP |
+  JAZZ |
+  CLASSICAL |
+  FOLK |
+  REGGAETON |
+  BLUES |
+  COUNTRY;
+```
+
+#### TrackMood
+
+```typescript
+ALEGRE |
+  MELANCOLICO |
+  ENERGETICO |
+  RELAJANTE |
+  ROMANTICO |
+  NOSTALGICO |
+  MOTIVACIONAL |
+  MISTERIOSO |
+  EPICO |
+  INTIMO |
+  FESTIVO |
+  CONTEMPLATIVO;
+```
+
+#### TempoRange
+
+```typescript
+VERY_SLOW; // 60-70 BPM
+SLOW; // 70-90 BPM
+MODERATE; // 90-120 BPM
+FAST; // 120-140 BPM
+VERY_FAST; // 140+ BPM
+```
+
+#### GenerationMethod
+
+```typescript
+PROMPT; // Descripción de texto
+MELODY; // Tararear melodía
+LYRICS; // Solo letras
+STYLE; // Imitación de estilo
+```
+
+## Flujo Completo Actualizado: Generar → Guardar → Crear Track
 
 ### 1. Generar Música
 
 ```typescript
-// Paso 1: Generar música con Riffusion
 const musicData = await fetch('http://localhost:3000/riffusion/generate', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -164,34 +330,32 @@ const musicData = await fetch('http://localhost:3000/riffusion/generate', {
 });
 
 const result = await musicData.json();
-// result.output.audio contiene la URL del archivo de audio (.wav)
-// result.output.spectrogram contiene la URL de la imagen del espectrograma (.png)
 ```
 
-### 2. Guardar en Supabase
+### 2. Guardar Archivos en Supabase
 
 ```typescript
-// Paso 2a: Guardar el archivo de audio en Supabase
+// Guardar audio
 const saveAudio = await fetch('http://localhost:3000/s3fake/upload-from-url', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    url: result.output.audio, // URL del archivo de audio generado
-    id: `track-${Date.now()}`, // ID único para el track
+    url: result.output.audio,
+    id: `track-${Date.now()}`,
   }),
 });
 
 const savedAudio = await saveAudio.json();
 
-// Paso 2b: (Opcional) Guardar también el espectrograma
+// Guardar espectrograma
 const saveSpectro = await fetch(
   'http://localhost:3000/s3fake/upload-from-url',
   {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      url: result.output.spectrogram, // URL de la imagen del espectrograma
-      id: `spectro-${Date.now()}`, // ID único para el espectrograma
+      url: result.output.spectrogram,
+      id: `spectro-${Date.now()}`,
     }),
   },
 );
@@ -199,32 +363,58 @@ const saveSpectro = await fetch(
 const savedSpectro = await saveSpectro.json();
 ```
 
-### 3. Reproducir Música
+### 3. Crear Track en Base de Datos
 
 ```typescript
-// Opción 1: Stream directo desde tu backend
-const audioElement = new Audio(
-  `http://localhost:3000/s3fake/stream/${savedAudio.path}`,
-);
-audioElement.play();
+const trackData = {
+  title: 'Mi Canción Generada',
+  description: 'Música generada con IA',
+  audioUrl: savedAudio.publicUrl,
+  spectrogramUrl: savedSpectro.publicUrl,
+  genre: 'ELECTRONIC',
+  mood: 'ENERGETICO',
+  tempo: 'FAST',
+  duration: 120, // segundos
+  isPublic: true,
+  aiGenerated: true,
+  generationMethod: 'PROMPT',
+  aiPrompt: 'electronic dance music with ambient chill',
+  originalPrompt: 'electronic dance music',
+  mainInstruments: ['synthesizer', 'drums'],
+  riffusionId: result.id,
+  generationId: `session-${Date.now()}`,
+  generationTime: 30000, // ms
+  fileSize: 2048576, // bytes
+  userId: 'user-uuid',
+};
 
-// Opción 2: Usar la URL pública de Supabase
-const audioElement2 = new Audio(savedAudio.publicUrl);
-audioElement2.play();
+const createTrack = await fetch('http://localhost:3000/tracks', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(trackData),
+});
 
-// Opción 3: Reproducir directamente desde Replicate (temporal)
-const audioElement3 = new Audio(result.output.audio);
-audioElement3.play();
+const createdTrack = await createTrack.json();
 ```
 
-### 4. Mostrar Espectrograma (Opcional)
+### 4. Obtener y Mostrar Tracks
 
 ```typescript
-// Mostrar la imagen del espectrograma
-const imgElement = document.createElement('img');
-imgElement.src = savedSpectro.publicUrl; // o result.output.spectrogram
-imgElement.alt = 'Espectrograma de la música generada';
-document.body.appendChild(imgElement);
+// Obtener tracks populares
+const popularTracks = await fetch(
+  'http://localhost:3000/tracks/popular?limit=10',
+);
+const popular = await popularTracks.json();
+
+// Buscar tracks
+const searchResults = await fetch(
+  'http://localhost:3000/tracks/search?q=electronic',
+);
+const results = await searchResults.json();
+
+// Obtener tracks de un usuario
+const userTracks = await fetch('http://localhost:3000/tracks/user/user-uuid');
+const tracks = await userTracks.json();
 ```
 
 ## Configuración de Supabase Storage
@@ -246,7 +436,7 @@ document.body.appendChild(imgElement);
 - **axios**: Peticiones HTTP
 - **mime-types**: Detección de tipos MIME
 
-## Estructura de Archivos
+## Estructura de Archivos Actualizada
 
 ```
 src/
@@ -259,28 +449,17 @@ src/
 │   ├── s3fake.service.ts          # Lógica de Supabase
 │   ├── s3fake.client.ts           # Cliente de Supabase
 │   └── s3fake.module.ts           # Configuración del módulo
+├── tracks/
+│   ├── tracks.controller.ts       # Rutas de gestión de tracks
+│   ├── tracks.service.ts          # Lógica de CRUD de tracks
+│   ├── tracks.module.ts           # Configuración del módulo
+│   └── dto/
+│       └── create-track.dto.ts    # DTOs y validaciones
 ├── app.module.ts                  # Módulo principal
 └── main.ts                        # Configuración del servidor
 ```
 
-## Consideraciones para el Frontend
-
-### Headers Recomendados
-
-```typescript
-const defaultHeaders = {
-  'Content-Type': 'application/json',
-  Accept: 'application/json',
-};
-```
-
-### Manejo de Errores
-
-- Todos los endpoints pueden devolver errores HTTP estándar
-- Verificar siempre el status de la respuesta
-- Los errores de Replicate se propagan al frontend
-
-### Tipos TypeScript Sugeridos
+## Tipos TypeScript Actualizados
 
 ```typescript
 interface RiffusionParams {
@@ -327,6 +506,91 @@ interface GeneratedTrack {
     alpha?: number;
   };
   createdAt: Date;
+}
+
+// Tipos específicos para Tracks
+interface CreateTrackDto {
+  title: string;
+  description?: string;
+  audioUrl: string;
+  coverImage?: string;
+  spectrogramUrl?: string;
+  genre: TrackGenre;
+  mood: TrackMood;
+  tempo: TempoRange;
+  duration: number;
+  isPublic?: boolean;
+  allowCollaborations?: boolean;
+  aiGenerated?: boolean;
+  generationMethod?: GenerationMethod;
+  aiPrompt?: string;
+  originalPrompt?: string;
+  mainInstruments?: string[];
+  lyrics?: string;
+  riffusionId?: string;
+  generationId?: string;
+  generationTime?: number;
+  fileSize?: number;
+  userId: string;
+}
+
+interface TrackResponse {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  title: string;
+  description?: string;
+  audioUrl: string;
+  coverImage?: string;
+  spectrogramUrl?: string;
+  genre: TrackGenre;
+  mood: TrackMood;
+  tempo: TempoRange;
+  duration: number;
+  isPublic: boolean;
+  allowCollaborations: boolean;
+  aiGenerated: boolean;
+  generationMethod?: GenerationMethod;
+  aiPrompt?: string;
+  originalPrompt?: string;
+  mainInstruments: string[];
+  lyrics?: string;
+  riffusionId?: string;
+  generationId?: string;
+  generationTime?: number;
+  fileSize?: bigint;
+  userId: string;
+  user: {
+    id: string;
+    username: string;
+    profileImage?: string;
+  };
+  _count: {
+    likes: number;
+    comments: number;
+  };
+}
+
+// Flujo completo
+interface CompleteTrackFlow {
+  // 1. Generar música
+  generateMusic: (params: RiffusionParams) => Promise<RiffusionResponse>;
+
+  // 2. Guardar archivos
+  saveAudio: (url: string, id: string) => Promise<UploadResponse>;
+  saveSpectrogram: (url: string, id: string) => Promise<UploadResponse>;
+
+  // 3. Crear track
+  createTrack: (trackData: CreateTrackDto) => Promise<TrackResponse>;
+
+  // 4. Gestionar tracks
+  getTracks: (filters?: TrackFilters) => Promise<TrackResponse[]>;
+  getTrack: (id: string) => Promise<TrackResponse>;
+  updateTrack: (
+    id: string,
+    data: Partial<CreateTrackDto>,
+  ) => Promise<TrackResponse>;
+  deleteTrack: (id: string) => Promise<void>;
 }
 ```
 

@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { S3FakeModule } from './s3fake/s3fake.module';
 import { RiffusionModule } from './riffusion/riffusion.module';
+import { TracksModule } from './tracks/tracks.module';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { RiffusionModule } from './riffusion/riffusion.module';
     AuthModule,
     PrismaModule,
     S3FakeModule,
-    RiffusionModule
+    RiffusionModule,
+    TracksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
