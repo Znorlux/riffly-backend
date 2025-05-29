@@ -21,6 +21,49 @@ enum UserRole {
   COMPOSITOR
 }
 
+enum TrackGenre {
+  POP
+  ROCK
+  ELECTRONIC
+  HIP_HOP
+  JAZZ
+  CLASSICAL
+  FOLK
+  REGGAETON
+  BLUES
+  COUNTRY
+}
+
+enum TrackMood {
+  ALEGRE
+  MELANCOLICO
+  ENERGETICO
+  RELAJANTE
+  ROMANTICO
+  NOSTALGICO
+  MOTIVACIONAL
+  MISTERIOSO
+  EPICO
+  INTIMO
+  FESTIVO
+  CONTEMPLATIVO
+}
+
+enum TempoRange {
+  VERY_SLOW    // 60-70 BPM
+  SLOW         // 70-90 BPM
+  MODERATE     // 90-120 BPM
+  FAST         // 120-140 BPM
+  VERY_FAST    // 140+ BPM
+}
+
+enum GenerationMethod {
+  PROMPT       // Descripción de texto
+  MELODY       // Tararear melodía
+  LYRICS       // Solo letras
+  STYLE        // Imitación de estilo
+}
+
 model User {
   id            String    @id @default(uuid())
   createdAt     DateTime  @default(now())
@@ -42,27 +85,61 @@ model User {
 }
 
 model Track {
-  id            String    @id @default(uuid())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  title         String
-  description   String?
-  audioUrl      String
-  coverImage    String?
-  genre         String?
-  duration      Int       // duración en segundos
-  isPublic      Boolean   @default(true)
-  aiGenerated   Boolean   @default(false)
-  aiPrompt      String?   // prompt usado para generar la pista con la API externa
+  id                String             @id @default(uuid())
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // Información básica
+  title             String
+  description       String?
+  
+  // URLs de archivos
+  audioUrl          String
+  coverImage        String?           // URL de imagen de portada puesta por el usuario
+  spectrogramUrl    String?           // URL específica del espectrograma
+  
+  // Metadatos musicales
+  genre             TrackGenre
+  mood              TrackMood
+  tempo             TempoRange
+  duration          Int               // duración en segundos
+  
+  // Configuración de visibilidad
+  isPublic          Boolean           @default(true)
+  allowCollaborations Boolean         @default(false)
+  
+  // Datos de generación por IA
+  aiGenerated       Boolean           @default(false)
+  generationMethod  GenerationMethod?
+  aiPrompt          String?           // prompt completo usado para generar
+  originalPrompt    String?           // prompt original del usuario
+  
+  // Instrumentos destacados (como array de strings)
+  mainInstruments       String[]          @default([])
+  
+  // Letras si las hay
+  lyrics            String?
+  
+  // IDs externos para tracking
+  riffusionId       String?           // ID de la API de Riffusion
+  generationId      String?           // ID único de la sesión de generación
+  
+  // Metadatos adicionales de generación
+  generationTime    Int?              // tiempo de generación en ms
+  fileSize          BigInt?           // tamaño total de archivos en bytes
   
   // Relaciones
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comments      Comment[]
-  likes         Like[]
-  playlistTracks PlaylistTrack[]
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments          Comment[]
+  likes             Like[]
+  playlistTracks    PlaylistTrack[]
   
   @@index([userId])
+  @@index([genre])
+  @@index([mood])
+  @@index([isPublic])
+  @@index([aiGenerated])
 }
 
 model Comment {
