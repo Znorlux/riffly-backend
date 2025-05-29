@@ -9,9 +9,12 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { TracksService } from './tracks.service';
 import { CreateTrackDto } from './dto/create-track.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { GetUser, User } from '../auth/get-user.decorator';
 
 @Controller('tracks')
 export class TracksController {
@@ -21,6 +24,12 @@ export class TracksController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createTrackDto: CreateTrackDto) {
     return this.tracksService.create(createTrackDto);
+  }
+
+  @Get('my-tracks')
+  @UseGuards(JwtAuthGuard)
+  async getMyTracks(@GetUser() user: User) {
+    return this.tracksService.findByUser(user.id);
   }
 
   @Get()
@@ -73,20 +82,19 @@ export class TracksController {
   }
 
   @Put(':id')
+  @UseGuards(JwtAuthGuard)
   async update(
     @Param('id') id: string,
     @Body() updateTrackDto: Partial<CreateTrackDto>,
-    @Query('userId') userId: string, // En una app real, esto vendría del JWT
+    @GetUser() user: User,
   ) {
-    return this.tracksService.update(id, updateTrackDto, userId);
+    return this.tracksService.update(id, updateTrackDto, user.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('id') id: string,
-    @Query('userId') userId: string, // En una app real, esto vendría del JWT
-  ) {
-    return this.tracksService.remove(id, userId);
+  @UseGuards(JwtAuthGuard)
+  async remove(@Param('id') id: string, @GetUser() user: User) {
+    return this.tracksService.remove(id, user.id);
   }
 }

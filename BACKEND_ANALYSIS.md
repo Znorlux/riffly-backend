@@ -241,25 +241,66 @@ const generateMusic = async (params: any) => {
 
 - `id`: ID del track
 
-#### PUT `/tracks/:id`
+#### PUT `/tracks/:id` 🔒
 
 **Propósito**: Actualizar un track existente
 
+**Autenticación**: Requiere Bearer Token (JWT)
+
 **Parámetros**:
 
 - `id`: ID del track
-- `userId`: ID del usuario (query param, en producción vendría del JWT)
+
+**Headers**:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
 
 **Body**: Cualquier campo del track a actualizar (parcial)
 
-#### DELETE `/tracks/:id`
+#### DELETE `/tracks/:id` 🔒
 
 **Propósito**: Eliminar un track
+
+**Autenticación**: Requiere Bearer Token (JWT)
 
 **Parámetros**:
 
 - `id`: ID del track
-- `userId`: ID del usuario (query param, en producción vendría del JWT)
+
+**Headers**:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### GET `/tracks/my-tracks` 🔒
+
+**Propósito**: Obtener todos los tracks del usuario autenticado
+
+**Autenticación**: Requiere Bearer Token (JWT)
+
+**Headers**:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Respuesta**: Lista de tracks del usuario con información completa
+
+**Ejemplo de uso**:
+
+```typescript
+const response = await fetch('http://localhost:3000/tracks/my-tracks', {
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+});
+
+const myTracks = await response.json();
+```
 
 ### Enums Disponibles
 
@@ -603,3 +644,55 @@ interface CompleteTrackFlow {
 5. **Implementar sistema de carga** para las operaciones asíncronas
 
 Este backend está listo para conectarse con cualquier frontend que pueda hacer peticiones HTTP. La arquitectura es modular y escalable.
+
+## Autenticación JWT
+
+El backend utiliza JWT (JSON Web Tokens) para autenticar usuarios. Algunos endpoints requieren autenticación.
+
+### Obtener Token
+
+#### POST `/auth/login`
+
+```json
+{
+  "email": "usuario@ejemplo.com",
+  "password": "contraseña123"
+}
+```
+
+**Respuesta**:
+
+```json
+{
+  "user": {
+    "id": "cm123abc-def4-5678-9012-abcdef123456",
+    "email": "usuario@ejemplo.com",
+    "username": "usuario123",
+    "role": "AFICIONADO",
+    "profileImage": null,
+    "bio": null
+  },
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Usar Token en Peticiones
+
+Para endpoints protegidos (marcados con 🔒), incluir el token en el header:
+
+```typescript
+const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+
+const response = await fetch('http://localhost:3000/tracks/my-tracks', {
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+});
+```
+
+### Endpoints Protegidos
+
+- `GET /tracks/my-tracks` - Obtener tracks del usuario autenticado
+- `PUT /tracks/:id` - Actualizar track (solo el propietario)
+- `DELETE /tracks/:id` - Eliminar track (solo el propietario)
