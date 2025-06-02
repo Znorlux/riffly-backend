@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { S3FakeModule } from './s3fake/s3fake.module';
 import { RiffusionModule } from './riffusion/riffusion.module';
 import { TracksModule } from './tracks/tracks.module';
+import { MinimaxModule } from './minimax/minimax.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { TracksModule } from './tracks/tracks.module';
     S3FakeModule,
     RiffusionModule,
     TracksModule,
+    MinimaxModule,
   ],
   controllers: [AppController],
   providers: [AppService],
