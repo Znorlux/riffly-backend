@@ -8,6 +8,7 @@ import { S3FakeModule } from './s3fake/s3fake.module';
 import { RiffusionModule } from './riffusion/riffusion.module';
 import { TracksModule } from './tracks/tracks.module';
 import { MinimaxModule } from './minimax/minimax.module';
+import { YoutubeModule } from './youtube/youtube.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { MinimaxModule } from './minimax/minimax.module';
     RiffusionModule,
     TracksModule,
     MinimaxModule,
+    YoutubeModule,
   ],
   controllers: [AppController],
   providers: [AppService],
