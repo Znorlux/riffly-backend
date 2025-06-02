@@ -18,7 +18,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: 'http://localhost:4200', // Server de Angular default (luego cambiar si se despliega)
+    origin: 'http://localhost:4200',
     credentials: true,
   });
 
